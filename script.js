@@ -381,20 +381,35 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTimerDisplay();
   }
   function handleTimerEnd() {
-    // When work period ends: mark selected task complete, award points
+    // When a work period ends: mark selected task complete and award points
     if (isWorkPeriod) {
-      // Mark selected task as completed
       if (selectedTaskId) {
+        // Mark the task as completed in our task list
         updateTaskStatus(selectedTaskId, 'completed');
-        // Award points
+
+        /*
+         * Award reward points using a progressive algorithm.
+         *
+         * Instead of granting a flat number of points each time a pomodoro
+         * finishes, we calculate a bonus based on how many tasks have been
+         * completed so far today. This provides a sense of momentum: the
+         * more sessions you finish, the larger the reward you earn for
+         * subsequent sessions. For example, the first completed task earns 1
+         * point, the second earns 2 points, the third earns 3 points, and
+         * so on. The number of completed tasks is determined from the
+         * current `tasks` array after updating the task status above.
+         */
+        const completedCount = tasks.filter(t => t.status === 'completed').length;
         const currentPoints = getRewardPoints();
-        setRewardPoints(currentPoints + 1);
+        // add the completedCount as the bonus for this session
+        setRewardPoints(currentPoints + completedCount);
+
         // Play completion sound and show notification
         playSound();
         alert('Great job! You completed a pomodoro and your task is marked as complete.');
       }
     }
-    // Toggle period
+    // Toggle between work and break periods
     isWorkPeriod = !isWorkPeriod;
     timerSecondsRemaining = 0;
     updateTimerDisplay();
