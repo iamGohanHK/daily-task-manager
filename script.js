@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const workDurationInput = document.getElementById('workDuration');
   const breakDurationInput = document.getElementById('breakDuration');
 
+  // Fullscreen timer elements
+  const toggleFullscreenBtn = document.getElementById('toggleFullscreen');
+  const fullscreenOverlay = document.getElementById('fullscreenOverlay');
+  const fullscreenClock = document.getElementById('fullscreenClock');
+  const exitFullscreenBtn = document.getElementById('exitFullscreen');
+
   // Determine key for today
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -35,6 +41,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Reward points
   function getRewardPoints() {
     return parseInt(localStorage.getItem('rewardPoints') || '0', 10);
+  }
+
+  // Play a simple notification sound using the Web Audio API
+  function playSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const duration = 0.5;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + duration);
+    } catch (err) {
+      console.warn('Web Audio API unsupported', err);
+    }
   }
   function setRewardPoints(points) {
     localStorage.setItem('rewardPoints', String(points));
@@ -314,6 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const minutes = Math.floor(timerSecondsRemaining / 60).toString().padStart(2, '0');
     const seconds = (timerSecondsRemaining % 60).toString().padStart(2, '0');
     timerDisplay.textContent = `${minutes}:${seconds}`;
+    // Also update the full‑screen display
+    if (fullscreenClock) {
+      fullscreenClock.textContent = `${minutes}:${seconds}`;
+    }
   }
   function startPomodoro() {
     // If timer already running, ignore
@@ -361,7 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Award points
         const currentPoints = getRewardPoints();
         setRewardPoints(currentPoints + 1);
-        // Play audio or show notification? For now, alert
+        // Play completion sound and show notification
+        playSound();
         alert('Great job! You completed a pomodoro and your task is marked as complete.');
       }
     }
@@ -374,6 +403,26 @@ document.addEventListener('DOMContentLoaded', () => {
   startTimerBtn.addEventListener('click', startPomodoro);
   pauseTimerBtn.addEventListener('click', pausePomodoro);
   resetTimerBtn.addEventListener('click', resetPomodoro);
+
+  // Fullscreen toggling
+  if (toggleFullscreenBtn && fullscreenOverlay && exitFullscreenBtn) {
+    toggleFullscreenBtn.addEventListener('click', () => {
+      // Show overlay and update display
+      fullscreenOverlay.classList.remove('hidden');
+      updateTimerDisplay();
+      // Attempt to enter browser full‑screen mode
+      if (fullscreenOverlay.requestFullscreen) {
+        fullscreenOverlay.requestFullscreen().catch(() => {});
+      }
+    });
+    exitFullscreenBtn.addEventListener('click', () => {
+      fullscreenOverlay.classList.add('hidden');
+      // Exit browser full‑screen if active
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+  }
 
   // Initialize
   loadTasks();

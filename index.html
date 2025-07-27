@@ -49,6 +49,7 @@
         <button id="startTimer">Start</button>
         <button id="pauseTimer">Pause</button>
         <button id="resetTimer">Reset</button>
+        <button id="toggleFullscreen">Fullscreen</button>
       </div>
       <div class="pomodoro-settings">
         <label>
@@ -63,6 +64,12 @@
       <h3>Rewards</h3>
       <p id="rewardPoints">0 points</p>
     </aside>
+
+    <!-- Fullscreen timer overlay -->
+    <div id="fullscreenOverlay" class="fullscreen-overlay hidden">
+      <div id="fullscreenClock" class="fullscreen-clock">25:00</div>
+      <button id="exitFullscreen" class="exit-fullscreen">×</button>
+    </div>
   </main>
 
   <footer>
