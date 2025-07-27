@@ -9,11 +9,13 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js" defer></script>
   <!-- Append version query to avoid old cached script being served by GitHub Pages -->
   <!-- Bump version query whenever script changes to bust caches -->
-  <script src="script.js?v=3" defer></script>
+  <script src="script.js?v=4" defer></script>
 </head>
 <body>
   <header>
     <h1>Daily Task Manager</h1>
+    <!-- Day selector for navigating between different day schedules -->
+    <div id="daySelector" class="day-selector"></div>
     <div class="import-section">
       <label for="csvInput" class="file-label">Upload CSV</label>
       <input type="file" id="csvInput" accept=".csv" hidden />

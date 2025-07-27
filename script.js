@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Rewards store elements
   const rewardListEl = document.getElementById('rewardList');
 
+  // Day selector element for switching between different day schedules
+  const daySelectorEl = document.getElementById('daySelector');
+
   // Catalog of rewards that users can claim. Each reward has a name and
   // an associated cost in points. Higher‑time activities such as movies
   // and calling friends cost more points to reflect the larger time
@@ -103,15 +106,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullscreenClock = document.getElementById('fullscreenClock');
   const exitFullscreenBtn = document.getElementById('exitFullscreen');
 
-  // Determine key for today
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const tasksKey = `tasks-${yyyy}-${mm}-${dd}`;
+  // Determine current date for default day logic
+  const todayDate = new Date();
+  const yyyy = todayDate.getFullYear();
+  const mm = String(todayDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(todayDate.getDate()).padStart(2, '0');
+  // Storage key for all tasks by day
+  const tasksByDayKey = 'tasksByDay';
 
   // In‑memory task state
+  // tasksByDay is an object mapping day keys (e.g., 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'today')
+  // to arrays of task objects. Each task has id, time, desc and status.
+  let tasksByDay = {};
+  // tasks is a reference to the array for the currently selected day
   let tasks = [];
+  // The currently selected day key. Determines which tasks array is active.
+  let selectedDay = '';
   let selectedTaskId = null;
   let timerInterval = null;
   let timerSecondsRemaining = 0;
@@ -152,24 +162,114 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialise reward display
   setRewardPoints(getRewardPoints());
 
-  // Load tasks from localStorage
+  /**
+   * Load tasksByDay from localStorage. If stored data exists it is parsed
+   * into an object mapping day keys to arrays of task objects. Otherwise
+   * tasksByDay is initialized as an empty object. After loading, the
+   * selectedDay is set to a default value (today or the first available
+   * key) and tasks is updated to reference the corresponding array.
+   */
   function loadTasks() {
-    const stored = localStorage.getItem(tasksKey);
+    const stored = localStorage.getItem(tasksByDayKey);
     if (stored) {
       try {
-        tasks = JSON.parse(stored);
+        tasksByDay = JSON.parse(stored);
       } catch (err) {
-        console.error('Failed to parse tasks from storage', err);
-        tasks = [];
+        console.error('Failed to parse tasksByDay from storage', err);
+        tasksByDay = {};
       }
     } else {
-      tasks = [];
+      tasksByDay = {};
     }
+    setDefaultSelectedDay();
   }
 
-  // Save tasks to localStorage
+  /**
+   * Persist the tasksByDay object to localStorage. Should be called after
+   * any mutation of tasksByDay to ensure changes persist across sessions.
+   */
   function saveTasks() {
-    localStorage.setItem(tasksKey, JSON.stringify(tasks));
+    localStorage.setItem(tasksByDayKey, JSON.stringify(tasksByDay));
+  }
+
+  /**
+   * Set the initial selected day. Prefers 'today' if present in tasksByDay,
+   * otherwise falls back to the current weekday abbreviation (e.g. 'mon'),
+   * then to the first key in tasksByDay, and finally to an empty string.
+   */
+  function setDefaultSelectedDay() {
+    // Determine current weekday abbreviation (sun, mon, tue, wed, thu, fri, sat)
+    const weekdayNames = ['sun','mon','tue','wed','thu','fri','sat'];
+    const currentDayAbbrev = weekdayNames[new Date().getDay()];
+    if (tasksByDay.hasOwnProperty('today')) {
+      selectedDay = 'today';
+    } else if (tasksByDay.hasOwnProperty(currentDayAbbrev)) {
+      selectedDay = currentDayAbbrev;
+    } else {
+      const keys = Object.keys(tasksByDay);
+      selectedDay = keys.length > 0 ? keys[0] : '';
+    }
+    // Update reference to tasks array
+    tasks = tasksByDay[selectedDay] || [];
+  }
+
+  /**
+   * Switch to a different day. Updates the selectedDay, points tasks to
+   * the appropriate array, re-renders the day selector and tasks, and
+   * updates progress indicators.
+   *
+   * @param {string} dayKey The canonical key representing the day to select
+   */
+  function setSelectedDay(dayKey) {
+    if (!dayKey || !tasksByDay.hasOwnProperty(dayKey)) return;
+    selectedDay = dayKey;
+    tasks = tasksByDay[selectedDay];
+    selectedTaskId = null;
+    renderDaySelector();
+    renderTasks();
+  }
+
+  /**
+   * Render the day selector buttons based on the current tasksByDay keys.
+   * The button for the selectedDay will have the 'active' class. Each
+   * button's click handler calls setSelectedDay() to switch contexts.
+   */
+  function renderDaySelector() {
+    if (!daySelectorEl) return;
+    daySelectorEl.innerHTML = '';
+    const keys = Object.keys(tasksByDay);
+    // Sort keys so 'today' appears first, then weekdays in order sun..sat
+    const weekdayOrder = ['sun','mon','tue','wed','thu','fri','sat'];
+    keys.sort((a, b) => {
+      if (a === 'today') return -1;
+      if (b === 'today') return 1;
+      const ai = weekdayOrder.indexOf(a);
+      const bi = weekdayOrder.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    keys.forEach(key => {
+      const btn = document.createElement('button');
+      // Capitalize display: 'today' => 'Today', 'mon' => 'Mon'
+      const label = key.charAt(0).toUpperCase() + key.slice(1);
+      btn.textContent = label;
+      if (key === selectedDay) {
+        btn.classList.add('active');
+      }
+      btn.addEventListener('click', () => {
+        setSelectedDay(key);
+      });
+      daySelectorEl.appendChild(btn);
+    });
+    // If there are no days, show a message
+    if (keys.length === 0) {
+      const msg = document.createElement('span');
+      msg.textContent = 'No schedule loaded yet';
+      msg.style.fontStyle = 'italic';
+      daySelectorEl.appendChild(msg);
+    }
   }
 
   // Render tasks to the UI
@@ -226,8 +326,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Update progress bar and text
   function updateProgress() {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
+    const total = tasks ? tasks.length : 0;
+    const completed = tasks ? tasks.filter(t => t.status === 'completed').length : 0;
     const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
     progressBar.style.width = `${percent}%`;
     progressText.textContent = `${percent}% complete`;
@@ -246,21 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // naive CSV split; works for simple numeric cells; no quotes support
       return line.split(',').map(cell => cell.trim());
     });
-    // Determine header row: first row
-    /*
-     * Find the header row. Some spreadsheets include blank rows at the top
-     * or other non‑header rows (e.g. notes) before the actual header row
-     * containing the day names (e.g. sat, sun, today, mon...). To robustly
-     * locate the header we scan each row looking for a cell in the second
-     * column (and beyond) that matches either one of the weekday names or
-     * the special "today" identifiers. If no such row is found we fall
-     * back to using the very first row as the header.
-     */
+    // Find the header row: look for row containing known day names in columns beyond the first
     const validNames = ['sun','mon','tue','wed','thu','fri','sat','today','tod','current','cur'];
     let headerRowIndex = 0;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      // Inspect columns 1..n (skip the first which holds the time)
       const cells = row.slice(1).map(c => c.toLowerCase().replace(/[^a-z]/g, ''));
       if (cells.some(c => validNames.includes(c))) {
         headerRowIndex = i;
@@ -268,52 +358,47 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     const header = rows[headerRowIndex];
-    const dayHeaders = header.slice(1).map(h => h.toLowerCase());
-    /*
-     * Determine the column for today.
-     *
-     * We first look for headers labelled "today" (or similar). This allows
-     * spreadsheets to specify a generic "today" column instead of using
-     * weekday abbreviations. If no "today" header is found we fall back
-     * to matching the current weekday abbreviation (sun, mon, tue, etc.).
-     */
-    let dayIndex = dayHeaders.findIndex(h => {
-      // normalise header text: remove whitespace and punctuation
-      const clean = h.replace(/[^a-z]/g, '');
-      return clean === 'today' || clean === 'tod' || clean === 'current' || clean === 'cur';
+    const dayHeaders = header.slice(1);
+    // Helper to canonicalise a header value to a consistent key
+    function canonicalDay(name) {
+      const clean = name.toLowerCase().replace(/[^a-z]/g, '');
+      if (['today','tod','current','cur'].includes(clean)) return 'today';
+      // Map full names or abbreviations to three-letter weekday codes
+      const map = {
+        sunday: 'sun', sun: 'sun', monday: 'mon', mon: 'mon', tuesday: 'tue', tue: 'tue', wednesday: 'wed', wed: 'wed',
+        thursday: 'thu', thu: 'thu', friday: 'fri', fri: 'fri', saturday: 'sat', sat: 'sat'
+      };
+      return map[clean] || clean;
+    }
+    // Reset tasksByDay
+    tasksByDay = {};
+    // Initialise arrays for each header column
+    dayHeaders.forEach((h, idx) => {
+      const key = canonicalDay(h);
+      if (!tasksByDay[key]) tasksByDay[key] = [];
     });
-    if (dayIndex === -1) {
-      // Determine today's day abbreviation (e.g., mon, tue)
-      const weekdayNames = ['sun','mon','tue','wed','thu','fri','sat'];
-      const currentDay = weekdayNames[today.getDay()];
-      // look for header starting with the current day abbreviation
-      dayIndex = dayHeaders.findIndex(h => h.startsWith(currentDay));
-    }
-    // If still not found, alert the user
-    if (dayIndex === -1) {
-      alert('Could not find a column matching today in the uploaded sheet.');
-      return;
-    }
-    // Clear existing tasks and create new ones
-    tasks = [];
-    // Iterate through rows (skip header row and any rows before it)
+    // Iterate through data rows after the header row
     for (let i = headerRowIndex + 1; i < rows.length; i++) {
       const row = rows[i];
-      // The time column (first column) may be empty for blank rows
       const time = row[0] || '';
-      // dayIndex corresponds to index within dayHeaders, so offset by 1 to skip time col
-      const cell = row[dayIndex + 1] || '';
-      if (cell) {
-        const task = {
-          id: generateId(),
-          time: time,
-          desc: cell,
-          status: 'todo'
-        };
-        tasks.push(task);
+      for (let j = 0; j < dayHeaders.length; j++) {
+        const cell = row[j + 1] || '';
+        if (cell) {
+          const key = canonicalDay(dayHeaders[j]);
+          if (!tasksByDay[key]) tasksByDay[key] = [];
+          tasksByDay[key].push({
+            id: generateId(),
+            time: time,
+            desc: cell,
+            status: 'todo'
+          });
+        }
       }
     }
     saveTasks();
+    // Set selected day default and re-render
+    setDefaultSelectedDay();
+    renderDaySelector();
     renderTasks();
   }
 
@@ -523,9 +608,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Initialize
+  // Initialize: load persisted tasks, setup drag‑and‑drop and render UI
   loadTasks();
   setupDragAndDrop();
+  // Render day selector and initial tasks list
+  renderDaySelector();
   renderTasks();
   updateTimerDisplay();
 
