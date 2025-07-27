@@ -139,7 +139,27 @@ document.addEventListener('DOMContentLoaded', () => {
       return line.split(',').map(cell => cell.trim());
     });
     // Determine header row: first row
-    const header = rows[0];
+    /*
+     * Find the header row. Some spreadsheets include blank rows at the top
+     * or other non‑header rows (e.g. notes) before the actual header row
+     * containing the day names (e.g. sat, sun, today, mon...). To robustly
+     * locate the header we scan each row looking for a cell in the second
+     * column (and beyond) that matches either one of the weekday names or
+     * the special "today" identifiers. If no such row is found we fall
+     * back to using the very first row as the header.
+     */
+    const validNames = ['sun','mon','tue','wed','thu','fri','sat','today','tod','current','cur'];
+    let headerRowIndex = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      // Inspect columns 1..n (skip the first which holds the time)
+      const cells = row.slice(1).map(c => c.toLowerCase().replace(/[^a-z]/g, ''));
+      if (cells.some(c => validNames.includes(c))) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+    const header = rows[headerRowIndex];
     const dayHeaders = header.slice(1).map(h => h.toLowerCase());
     /*
      * Determine the column for today.
@@ -168,10 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Clear existing tasks and create new ones
     tasks = [];
-    // Iterate through rows (skip header)
-    for (let i = 1; i < rows.length; i++) {
+    // Iterate through rows (skip header row and any rows before it)
+    for (let i = headerRowIndex + 1; i < rows.length; i++) {
       const row = rows[i];
+      // The time column (first column) may be empty for blank rows
       const time = row[0] || '';
+      // dayIndex corresponds to index within dayHeaders, so offset by 1 to skip time col
       const cell = row[dayIndex + 1] || '';
       if (cell) {
         const task = {
