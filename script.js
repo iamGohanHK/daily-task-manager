@@ -141,10 +141,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Determine header row: first row
     const header = rows[0];
     const dayHeaders = header.slice(1).map(h => h.toLowerCase());
-    // Determine today's day abbreviation (e.g., mon, tue)
-    const weekdayNames = ['sun','mon','tue','wed','thu','fri','sat'];
-    const currentDay = weekdayNames[today.getDay()];
-    const dayIndex = dayHeaders.findIndex(h => h.startsWith(currentDay));
+    /*
+     * Determine the column for today.
+     *
+     * We first look for headers labelled "today" (or similar). This allows
+     * spreadsheets to specify a generic "today" column instead of using
+     * weekday abbreviations. If no "today" header is found we fall back
+     * to matching the current weekday abbreviation (sun, mon, tue, etc.).
+     */
+    let dayIndex = dayHeaders.findIndex(h => {
+      // normalise header text: remove whitespace and punctuation
+      const clean = h.replace(/[^a-z]/g, '');
+      return clean === 'today' || clean === 'tod' || clean === 'current' || clean === 'cur';
+    });
+    if (dayIndex === -1) {
+      // Determine today's day abbreviation (e.g., mon, tue)
+      const weekdayNames = ['sun','mon','tue','wed','thu','fri','sat'];
+      const currentDay = weekdayNames[today.getDay()];
+      // look for header starting with the current day abbreviation
+      dayIndex = dayHeaders.findIndex(h => h.startsWith(currentDay));
+    }
+    // If still not found, alert the user
     if (dayIndex === -1) {
       alert('Could not find a column matching today in the uploaded sheet.');
       return;
