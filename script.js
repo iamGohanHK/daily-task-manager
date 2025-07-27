@@ -10,6 +10,85 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
   const rewardDisplay = document.getElementById('rewardPoints');
+  // Rewards store elements
+  const rewardListEl = document.getElementById('rewardList');
+
+  // Catalog of rewards that users can claim. Each reward has a name and
+  // an associated cost in points. Higher‑time activities such as movies
+  // and calling friends cost more points to reflect the larger time
+  // investment away from work. Feel free to adjust these values to suit
+  // your personal preferences.
+  const rewardCatalog = [
+    { name: 'Browsing Twitter', cost: 2 },
+    { name: 'YouTube Video', cost: 3 },
+    { name: 'Nap', cost: 5 },
+    { name: 'Calling Friends', cost: 6 },
+    { name: 'Eating Outside (Favourite Dish)', cost: 8 },
+    { name: 'Movie', cost: 10 }
+  ];
+
+  /**
+   * Render the list of rewards available to claim. Each reward item
+   * shows its name, cost in points, and includes a claim button. The
+   * claim button is enabled only when the user has enough points.
+   */
+  function renderRewardStore() {
+    if (!rewardListEl) return;
+    rewardListEl.innerHTML = '';
+    rewardCatalog.forEach((reward, idx) => {
+      const item = document.createElement('div');
+      item.classList.add('reward-item');
+      // Title and cost
+      const title = document.createElement('span');
+      title.textContent = `${reward.name} (cost: ${reward.cost} pts)`;
+      item.appendChild(title);
+      // Claim button
+      const btn = document.createElement('button');
+      btn.textContent = 'Claim';
+      btn.addEventListener('click', () => {
+        claimReward(reward);
+      });
+      item.appendChild(btn);
+      rewardListEl.appendChild(item);
+    });
+    // After creating elements, update their disabled state
+    updateRewardButtons();
+  }
+
+  /**
+   * Enable or disable claim buttons based on the user's current points.
+   */
+  function updateRewardButtons() {
+    if (!rewardListEl) return;
+    const currentPoints = getRewardPoints();
+    const buttons = rewardListEl.querySelectorAll('button');
+    buttons.forEach((btn, idx) => {
+      const reward = rewardCatalog[idx];
+      if (currentPoints >= reward.cost) {
+        btn.disabled = false;
+      } else {
+        btn.disabled = true;
+      }
+    });
+  }
+
+  /**
+   * Handle claiming a reward. If the user has enough points, subtract the
+   * reward cost from their balance, update the display, and show a
+   * congratulatory message. Otherwise, inform the user they need more points.
+   *
+   * @param {{name: string, cost: number}} reward
+   */
+  function claimReward(reward) {
+    const currentPoints = getRewardPoints();
+    if (currentPoints >= reward.cost) {
+      // Deduct cost and update display
+      setRewardPoints(currentPoints - reward.cost);
+      alert(`You claimed "${reward.name}" and spent ${reward.cost} points! Enjoy your break.`);
+    } else {
+      alert('Not enough points to claim this reward. Keep completing pomodoros to earn more!');
+    }
+  }
   // Timer elements
   const timerDisplay = document.getElementById('timerDisplay');
   const startTimerBtn = document.getElementById('startTimer');
@@ -63,6 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function setRewardPoints(points) {
     localStorage.setItem('rewardPoints', String(points));
     rewardDisplay.textContent = `${points} points`;
+    // Update availability of reward claim buttons if present
+    if (typeof updateRewardButtons === 'function') {
+      // Defer to next tick in case reward list not yet rendered
+      setTimeout(() => updateRewardButtons(), 0);
+    }
   }
 
   // Initialise reward display
@@ -444,4 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDragAndDrop();
   renderTasks();
   updateTimerDisplay();
+
+  // Render the reward store on first load
+  renderRewardStore();
 });
