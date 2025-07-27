@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Task Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- SortableJS for drag‑and‑drop interactions -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Daily Task Manager</h1>
+    <div class="import-section">
+      <label for="csvInput" class="file-label">Upload CSV</label>
+      <input type="file" id="csvInput" accept=".csv" hidden />
+      <input type="text" id="sheetUrl" placeholder="Paste public Google Sheets link (optional)">
+      <button id="loadSheet">Load Sheet</button>
+    </div>
+    <div class="progress-wrapper">
+      <span id="progressText">0% complete</span>
+      <div class="progress-bar-background">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="board">
+      <div class="column" id="todoColumn">
+        <h2>To Do</h2>
+        <div class="task-list" id="todoList"></div>
+      </div>
+      <div class="column" id="inProgressColumn">
+        <h2>In Progress</h2>
+        <div class="task-list" id="inProgressList"></div>
+      </div>
+      <div class="column" id="completedColumn">
+        <h2>Completed</h2>
+        <div class="task-list" id="completedList"></div>
+      </div>
+    </section>
+    <aside class="sidebar">
+      <h2>Pomodoro Timer</h2>
+      <div id="timerDisplay" class="timer-display">25:00</div>
+      <div class="timer-controls">
+        <button id="startTimer">Start</button>
+        <button id="pauseTimer">Pause</button>
+        <button id="resetTimer">Reset</button>
+      </div>
+      <div class="pomodoro-settings">
+        <label>
+          Work (mins):
+          <input type="number" id="workDuration" value="25" min="5" max="60">
+        </label>
+        <label>
+          Break (mins):
+          <input type="number" id="breakDuration" value="5" min="1" max="30">
+        </label>
+      </div>
+      <h3>Rewards</h3>
+      <p id="rewardPoints">0 points</p>
+    </aside>
+  </main>
+
+  <footer>
+    <p>Data is stored locally in your browser. Refresh or close the tab and your progress will remain.</p>
+  </footer>
+</body>
+</html>
